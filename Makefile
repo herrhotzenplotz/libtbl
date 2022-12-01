@@ -1,6 +1,6 @@
 CPPFLAGS	+=	-I.
 CFLAGS		+=	-fPIC
-all: libtbl.a libtbl.so.1
+all: libtbl.a libtbl.so.1 example
 
 clean:
 	rm -f libtbl.a libtbl.so* libtbl.o
