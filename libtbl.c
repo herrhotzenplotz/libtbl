@@ -71,6 +71,14 @@ libtbl_have_colours(void)
 {
 	if (have_colours < 0) {
 		have_colours = isatty(STDOUT_FILENO);
+
+		/* allow the environment to disable colours */
+		if (have_colours) {
+			char const *env_disable_colours = getenv("LIBTBL_NO_COLOURS");
+
+			if (env_disable_colours)
+				have_colours = strcmp("1", env_disable_colours);
+		}
 	}
 
 	return have_colours;
@@ -402,7 +410,7 @@ dump_row(struct libtbl_tbl const *const table, size_t const i)
 			printf("%s", libtbl_setbold());
 
 		/* Custom formatter handling */
-		if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM)
+		if (libtbl_have_colours() && (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM))
 			row->cells[col].formatter_fn(1, row->cells[col].userdata);
 
 		/* Print cell if it is not NULL, otherwise indicate it by
@@ -410,7 +418,7 @@ dump_row(struct libtbl_tbl const *const table, size_t const i)
 		printf("%s  ", row->cells[col].text ? row->cells[col].text : "<empty>");
 
 		/* Custom formatter end */
-		if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM)
+		if (libtbl_have_colours() && (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM))
 			row->cells[col].formatter_fn(0, row->cells[col].userdata);
 
 		/* End colour */
