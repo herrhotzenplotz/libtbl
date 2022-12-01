@@ -63,31 +63,122 @@ libtbl_asprintf(char const *fmt, ...)
 /*****************************************************************************
  * ANSI Colour handling 
  ****************************************************************************/
+
+static struct {
+        uint32_t code;
+        char *sequence;
+} colour_table[1024];
+static size_t colour_table_size;
+
+static void
+clean_colour_table(void)
+{
+        for (size_t i = 0; i < colour_table_size; ++i)
+                free(colour_table[i].sequence);
+}
+
+static char const *
+colour_cache_lookup(uint32_t const code)
+{
+        for (size_t i = 0; i < colour_table_size; ++i) {
+                if (colour_table[i].code == code)
+                        return colour_table[i].sequence;
+        }
+        return NULL;
+}
+
+static void
+colour_cache_insert(uint32_t const code, char *sequence)
+{
+        colour_table[colour_table_size].code = code;
+        colour_table[colour_table_size].sequence = sequence;
+        colour_table_size++;
+}
+
 static char const *const
 libtbl_setcolour(int code)
 {
+/* TODO: fix this
+	if (!gcli_config_have_colors())
+		return "";
+*/
+
+	switch (code) {
+	case LIBTBL_COLOUR_BLACK:   return "\033[30m";
+	case LIBTBL_COLOUR_RED:     return "\033[31m";
+	case LIBTBL_COLOUR_GREEN:   return "\033[32m";
+	case LIBTBL_COLOUR_YELLOW:  return "\033[33m";
+	case LIBTBL_COLOUR_BLUE:    return "\033[34m";
+	case LIBTBL_COLOUR_MAGENTA: return "\033[35m";
+	case LIBTBL_COLOUR_CYAN:    return "\033[36m";
+	case LIBTBL_COLOUR_WHITE:   return "\033[37m";
+	case LIBTBL_COLOUR_DEFAULT: return "\033[39m";
+	default:
+		return NULL;
+	}
 	return NULL;
 }
 
 static char const *const
-libtbl_setcolour256(uint64_t const hexcode)
+libtbl_setcolour256(uint64_t const code)
 {
-	return NULL;
+	char *result = NULL;
+	char const *oldresult = NULL;
+
+/* TODO: fix this
+        if (!gcli_config_have_colors())
+                return "";
+*/
+
+	if (colour_table_size == 0)
+		atexit(clean_colour_table);
+
+	oldresult = colour_cache_lookup(code);
+	if (oldresult)
+		return oldresult;
+
+        /* TODO: This is inherently screwed */
+	result = libtbl_asprintf("\033[38;2;%02d;%02d;%02dm",
+	                         (code & 0xFF000000) >> 24,
+	                         (code & 0x00FF0000) >> 16,
+	                         (code & 0x0000FF00) >>  8);
+
+	colour_cache_insert(code, result);
+
+	return result;
 }
 
 static char const *const
 libtbl_setbold(void)
 {
+/* TODO: fix this
+	if (!gcli_config_have_colors())
+		return "";
+	else
+*/
+		return "\033[1m";
 }
 
 static char const *const
 libtbl_resetcolour(void)
 {
+/* TODO: fix this
+	if (!gcli_config_have_colors())
+		return "";
+*/
+
+	return "\033[m";
 }
 
 static char const *const
 libtbl_resetbold(void)
 {
+/* TODO: fix this
+	if (!gcli_config_have_colors())
+		return "";
+	else
+*/
+		return "\033[22m";
 }
 
 /*****************************************************************************
@@ -112,6 +203,9 @@ struct libtbl_tblrow {
 		char *text;     /* the text in the cell */
 		char const *colour;     /* colour (ansi escape sequence) if
 		                         * explicit fixed colour was given */
+
+		custom_formatter formatter_fn;
+		void *userdata;         /* user data to pass to the function */
 	} *cells;
 };
 
@@ -134,7 +228,7 @@ libtbl_tbl_begin(libtbl_tblcoldef const *const cols, size_t const cols_size)
 {
 	struct libtbl_tbl *tbl;
 
-    /* Allocate the structure and fill in the handle */
+	/* Allocate the structure and fill in the handle */
 	tbl = calloc(sizeof(*tbl), 1);
 	if (!tbl)
 		return NULL;
@@ -189,6 +283,9 @@ tablerow_add_cell(struct libtbl_tbl *const table,
 
 		/* see comment above */
 		row->cells[col].colour = libtbl_setcolour256(hexcode);
+	} else if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM) {
+		row->cells[col].formatter_fn = va_arg(vp, custom_formatter);
+		row->cells[col].userdata = va_arg(vp, void *);
 	}
 
 
@@ -295,9 +392,17 @@ dump_row(struct libtbl_tbl const *const table, size_t const i)
 		if (table->cols[col].flags & LIBTBL_TBLCOL_BOLD)
 			printf("%s", libtbl_setbold());
 
+		/* Custom formatter handling */
+		if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM)
+			row->cells[col].formatter_fn(1, row->cells[col].userdata);
+
 		/* Print cell if it is not NULL, otherwise indicate it by
 		 * printing <empty> */
 		printf("%s  ", row->cells[col].text ? row->cells[col].text : "<empty>");
+
+		/* Custom formatter end */
+		if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM)
+			row->cells[col].formatter_fn(0, row->cells[col].userdata);
 
 		/* End colour */
 		if (table->cols[col].flags & (LIBTBL_TBLCOL_COLOUREXPL|LIBTBL_TBLCOL_256COLOUR))

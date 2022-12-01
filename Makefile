@@ -10,3 +10,6 @@ libtbl.a: libtbl.o
 
 libtbl.so.1: libtbl.o
 	${CC} -shared -Xlinker --soname=libtbl.so.1 -o libtbl.so.1 libtbl.o
+
+example: libtbl.a example.c
+	${CC} -static -o example example.c libtbl.a

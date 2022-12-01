@@ -35,6 +35,9 @@
 typedef struct libtbl_tblcoldef libtbl_tblcoldef;
 typedef void *libtbl_tbl;
 
+/* Callback for custom formatters */
+typedef void (*custom_formatter)(int is_start, void *userdata);
+
 /** Flags for table column definitions */
 enum libtbl_tblcol_flags {
 	/* Custom formatter (function pointer + data) */
@@ -48,6 +51,19 @@ enum libtbl_tblcol_flags {
 	LIBTBL_TBLCOL_COLOUREXPL     = 8,
 	/* 256 color handling. Just like the above */
 	LIBTBL_TBLCOL_256COLOUR      = 16,
+};
+
+/** Colour codes for LIBTBL_TBLCOL_COLOUREXPL */
+enum {
+	LIBTBL_COLOUR_BLACK = 0,
+	LIBTBL_COLOUR_RED,
+	LIBTBL_COLOUR_GREEN,
+	LIBTBL_COLOUR_YELLOW,
+	LIBTBL_COLOUR_BLUE,
+	LIBTBL_COLOUR_MAGENTA,
+	LIBTBL_COLOUR_CYAN,
+	LIBTBL_COLOUR_WHITE,
+	LIBTBL_COLOUR_DEFAULT,
 };
 
 enum libtbl_tblcoltype {
