@@ -43,14 +43,14 @@ enum libtbl_tblcol_flags {
 	/* Custom formatter (function pointer + data) */
 	LIBTBL_TBLCOL_CUSTOM  = 1,
 	/* Right-justify the column */
-	LIBTBL_TBLCOL_JUSTIFYR       = 2,
+	LIBTBL_TBLCOL_JUSTIFYR = 2,
 	/* Make it bold */
-	LIBTBL_TBLCOL_BOLD           = 4,
+	LIBTBL_TBLCOL_BOLD = 4,
 	/* Explicit colour - provide the colour to libtbl_tbl_add_row first
 	 * and second the content of the cell. */
-	LIBTBL_TBLCOL_COLOUREXPL     = 8,
+	LIBTBL_TBLCOL_COLOUREXPL = 8,
 	/* 256 color handling. Just like the above */
-	LIBTBL_TBLCOL_256COLOUR      = 16,
+	LIBTBL_TBLCOL_256COLOUR = 16,
 };
 
 /** Colour codes for LIBTBL_TBLCOL_COLOUREXPL */
@@ -91,5 +91,8 @@ void libtbl_tbl_end(libtbl_tbl table);
 
 /* Add a single to an initialized table */
 int libtbl_tbl_add_row(libtbl_tbl table, ...);
+
+/* Explicitly enable/disable colour output */
+int libtbl_set_colours_enabled(int value);
 
 #endif /* LIBTBL_TABLE_H */

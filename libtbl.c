@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 /*****************************************************************************
  * Helpers
@@ -63,6 +64,17 @@ libtbl_asprintf(char const *fmt, ...)
 /*****************************************************************************
  * ANSI Colour handling 
  ****************************************************************************/
+static int have_colours = -1;
+
+static int
+libtbl_have_colours(void)
+{
+	if (have_colours < 0) {
+		have_colours = isatty(STDOUT_FILENO);
+	}
+
+	return have_colours;
+}
 
 static struct {
         uint32_t code;
@@ -98,10 +110,8 @@ colour_cache_insert(uint32_t const code, char *sequence)
 static char const *const
 libtbl_setcolour(int code)
 {
-/* TODO: fix this
-	if (!gcli_config_have_colors())
+	if (!libtbl_have_colours())
 		return "";
-*/
 
 	switch (code) {
 	case LIBTBL_COLOUR_BLACK:   return "\033[30m";
@@ -125,10 +135,8 @@ libtbl_setcolour256(uint64_t const code)
 	char *result = NULL;
 	char const *oldresult = NULL;
 
-/* TODO: fix this
-        if (!gcli_config_have_colors())
+        if (!libtbl_have_colours())
                 return "";
-*/
 
 	if (colour_table_size == 0)
 		atexit(clean_colour_table);
@@ -151,34 +159,34 @@ libtbl_setcolour256(uint64_t const code)
 static char const *const
 libtbl_setbold(void)
 {
-/* TODO: fix this
-	if (!gcli_config_have_colors())
+	if (!libtbl_have_colours())
 		return "";
 	else
-*/
 		return "\033[1m";
 }
 
 static char const *const
 libtbl_resetcolour(void)
 {
-/* TODO: fix this
-	if (!gcli_config_have_colors())
+	if (!libtbl_have_colours())
 		return "";
-*/
-
-	return "\033[m";
+	else
+		return "\033[m";
 }
 
 static char const *const
 libtbl_resetbold(void)
 {
-/* TODO: fix this
-	if (!gcli_config_have_colors())
+	if (!libtbl_have_colours())
 		return "";
 	else
-*/
 		return "\033[22m";
+}
+
+int
+libtbl_set_colours_enabled(int enabled)
+{
+	return (have_colours = enabled);
 }
 
 /*****************************************************************************
@@ -276,7 +284,8 @@ tablerow_add_cell(struct libtbl_tbl *const table,
 	if (table->cols[col].flags & LIBTBL_TBLCOL_COLOUREXPL) {
 		int code = va_arg(vp, int);
 
-		/* don't free that! it's allocated and free'ed inside colour.c */
+		/* don't free that! it's allocated and free'ed up in the colour
+		 * handling code. */
 		row->cells[col].colour = libtbl_setcolour(code);
 	} else if (table->cols[col].flags & LIBTBL_TBLCOL_256COLOUR) {
 		uint64_t hexcode = va_arg(vp, uint64_t);
