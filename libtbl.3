@@ -1,0 +1,174 @@
+.Dd $Mdocdate$
+.Dt LIBTBL 3
+.Os
+.Sh NAME
+.Nm libtbl_tbl_init , libtbl_tbl_add_row , libtbl_tbl_end
+.Nd Generic Table Printer
+.Sh LIBRARY
+.Lb libtbl
+.Sh SYNOPSIS
+.In libtbl.h
+.Ft libtbl_tbl
+.Fn "libtbl_tbl_begin" "libtbl_tblcoldef cols[]" "size_t cols_size"
+.Ft int
+.Fn libtbl_tbl_add_row "libtbl_tbl table" "..."
+.Ft void
+.Fn libtbl_tbl_end "libtbl_tbl table"
+.Ft int
+.Fn libtbl_set_colours_enabled "int enabled"
+.Sh DESCRIPTION
+libtbl is a library for printing tabular data. Given a set of columns
+defined by the following data structure it will accept a list of
+rows and print them out.
+.Bd -literal -offset indent
+typedef struct libtbl_tblcoldef libtbl_tblcoldef;
+
+struct libtbl_tblcoldef {
+	char const *const name;     /* header of the column */
+	int flags;                  /* display flags */
+	int type;                   /* data type of the column */
+};
+.Ed
+.Pp
+The name field will be printed above the first row of data as is.
+The flags field is a bit mask of the following values:
+.Bl -tag -width LIBTBL_TBLCOL_COLOUREXPL
+.It Dv LIBTBL_TBLCOL_JUSTIFYR
+Justify the contents of this column to the right.
+.It Dv LIBTBL_TBLCOL_BOLD
+Print the column contents with a bold font.
+.It Dv LIBTBL_TBLCOL_256COLOUR
+Accept an additional uint64_t containing the RGBA colour to print the
+cell contents in.
+.It Dv LIBTBL_TBLCOL_CUSTOM
+Accept a callback to do custom formatting. See
+.Sx CUSTOM FORMATTERS
+.It Dv LIBTBL_TBLCOL_COLOUREXPL
+Accept an additional colour code for the cell contents. The colour
+codes are:
+.Bl -bullet -compact
+.It
+.Dv LIBTBL_COLOUR_BLACK
+.It
+.Dv LIBTBL_COLOUR_RED
+.It
+.Dv LIBTBL_COLOUR_GREEN
+.It
+.Dv LIBTBL_COLOUR_YELLOW
+.It
+.Dv LIBTBL_COLOUR_BLUE
+.It
+.Dv LIBTBL_COLOUR_MAGENTA
+.It
+.Dv LIBTBL_COLOUR_CYAN
+.It
+.Dv LIBTBL_COLOUR_WHITE
+.It
+.Dv LIBTBL_COLOUR_DEFAULT
+.El
+.El
+.Pp
+You can add rows to an initialized table by repeatedly calling
+.Fn libtbl_tbl_add_row
+and supplying arguments as needed.
+When a column is given one of the colour options, provide the
+colour first and then the data. When the custom flag is set,
+provide a function pointer first, a user-data pointer second
+and the cell content last. See
+.Sx CUSTOM FORMATTERS
+and
+.Sx EXAMPLES
+for more details.
+.Pp
+Once you have called
+.Fn libtbl_tbl_add_row
+to add all the rows, call
+.Fn libtbl_tbl_end
+to dump the table to stdout and free all the internally allocated
+resources.
+.Pp
+Note that all data passed to the functions as pointers need to be
+valid up to this call. An exception to this rule are strings as
+they will be copied internally. The
+.Fn libtbl_tbl_end
+call will also call into your custom callbacks and pass the user pointer
+as given.
+.Sh CUSTOM FORMATTERS
+Whenever
+.Dv LIBTBL_TBLCOL_CUSTOM
+is specified in a column definition you need to provide a function
+pointer, a user data pointer and the cell contents to
+.Fn libtbl_tbl_add_row
+for a cell of the given column:
+.Bd -literal -offset indent
+typedef void (*custom_formatter)(int is_start, void *userdata);
+.Ed
+.Pp
+When the cell is about to be printed the function is called with 1 passed to
+.Va is_start
+and the userdata pointer passed as it was given to the add_row call.
+After the contents have been printed your callback will be called
+again with a 0 instead of a 1 to indicate that you should stop
+formatting the output.
+.Pp
+See
+.Pa example.c
+for an example of how to pass arguments correctly.
+.Sh RETURN VALUES
+.Fn libtbl_tbl_begin
+returns a valid table handle on success or NULL on failure. Both
+.Fn libtbl_tbl_add_row
+and
+.Fn libtbl_tbl_end
+return 0 on success or -1 on failure.
+.Fn libtbl_set_colours_enabled
+returns 0 if colours have been disabled and 1 if colours have been
+enabled.
+.Sh ENVIRONMENT
+.Bl -tag -width LIBTBL_NO_COLOURS
+.It Ev LIBTBL_NO_COLOURS
+If set to 1 this disables colour output and custom formatters
+entirely.
+.Sh EXAMPLES
+To print a simple table with 3 columns of data:
+.Bd -literal -offset indent
+#include <libtbl.h>
+#include <stdbool.h>
+
+...
+
+libtbl_tbl table;
+libtbl_tblcoldef cols[] = {
+	{ .name = "COL1", .type = LIBTBL_TBLCOLTYPE_INT, .flags = 0 },
+	{ .name = "COL2", .type = LIBTBL_TBLCOLTYPE_BOOL, .flags = 0 },
+	{ .name = "COL3", .type = LIBTBL_TBLCOLTYPE_STRING, .flags = 0 },
+};
+
+table = libtbl_tbl_begin(cols, sizeof(cols) / sizeof(*cols));
+if (!table) {
+	fprintf(stderr, "error: could not init table");
+	abort();
+}
+
+for (...) {
+	libtbl_tbl_add_row(table, i, true, "test");
+}
+
+libtbl_tbl_end(table);
+.Ed
+.Pp
+You can find more examples shipped in the distribution of libtbl.
+.Sh ERRORS
+The functions return error codes only if internal resource allocations
+failed.
+.Sh SEE ALSO
+.Xr column 1
+.Sh HISTORY
+Libtbl was written in 2022 as part of the gcli program and later
+put into a separate library as people considered it useful for other
+projects.
+.Sh AUTHORS
+libtbl was written by
+.An Nico Sonack Aq Mt nsonack@herrhotzenplotz.de
+.Sh BUGS
+Currently it is impossible to print to other files than stdout.
