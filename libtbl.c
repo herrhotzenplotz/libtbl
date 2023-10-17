@@ -53,7 +53,7 @@ libtbl_asprintf(char const *fmt, ...)
 	result = calloc(1, actual + 1);
 	if (!result)
 		return NULL;
- 
+
 	va_start(vp, fmt);
 	vsnprintf(result, actual + 1, fmt, vp);
 	va_end(vp);
@@ -62,7 +62,7 @@ libtbl_asprintf(char const *fmt, ...)
 }
 
 /*****************************************************************************
- * ANSI Colour handling 
+ * ANSI Colour handling
  ****************************************************************************/
 static int have_colours = -1;
 
@@ -284,51 +284,51 @@ table_freerow(struct libtbl_tblrow *row, size_t const cols)
 static int
 tablerow_add_cell(struct libtbl_tbl *const table,
                   struct libtbl_tblrow *const row,
-                  size_t const col, va_list vp)
+                  size_t const col, va_list *vp)
 {
 	int cell_size = 0;
 
 	/* Extract the explicit colour code */
 	if (table->cols[col].flags & LIBTBL_TBLCOL_COLOUREXPL) {
-		int code = va_arg(vp, int);
+		int code = va_arg(*vp, int);
 
 		/* don't free that! it's allocated and free'ed up in the colour
 		 * handling code. */
 		row->cells[col].colour = libtbl_setcolour(code);
 	} else if (table->cols[col].flags & LIBTBL_TBLCOL_256COLOUR) {
-		uint64_t hexcode = va_arg(vp, uint64_t);
+		uint64_t hexcode = va_arg(*vp, uint64_t);
 
 		/* see comment above */
 		row->cells[col].colour = libtbl_setcolour256(hexcode);
 	} else if (table->cols[col].flags & LIBTBL_TBLCOL_CUSTOM) {
-		row->cells[col].formatter_fn = va_arg(vp, custom_formatter);
-		row->cells[col].userdata = va_arg(vp, void *);
+		row->cells[col].formatter_fn = va_arg(*vp, custom_formatter);
+		row->cells[col].userdata = va_arg(*vp, void *);
 	}
 
 
 	/* Process the content */
 	switch (table->cols[col].type) {
 	case LIBTBL_TBLCOLTYPE_INT: {
-		row->cells[col].text = libtbl_asprintf("%d", va_arg(vp, int));
+		row->cells[col].text = libtbl_asprintf("%d", va_arg(*vp, int));
 		cell_size = strlen(row->cells[col].text);
 	} break;
 	case LIBTBL_TBLCOLTYPE_LONG: {
-		row->cells[col].text = libtbl_asprintf("%ld", va_arg(vp, long));
+		row->cells[col].text = libtbl_asprintf("%ld", va_arg(*vp, long));
 		cell_size = strlen(row->cells[col].text);
 	} break;
 	case LIBTBL_TBLCOLTYPE_STRING: {
-		char *it = va_arg(vp, char *);
+		char *it = va_arg(*vp, char *);
 		row->cells[col].text = strdup(it);
 		cell_size = strlen(it);
 	} break;
 	case LIBTBL_TBLCOLTYPE_DOUBLE: {
-		row->cells[col].text = libtbl_asprintf("%lf", va_arg(vp, double));
+		row->cells[col].text = libtbl_asprintf("%lf", va_arg(*vp, double));
 		cell_size = strlen(row->cells[col].text);
 	} break;
 	case LIBTBL_TBLCOLTYPE_BOOL: {
 		/* Do not use real _Bool type as it triggers a compiler bug in
 		 * LLVM clang 13 */
-		int val = va_arg(vp, int);
+		int val = va_arg(*vp, int);
 		if (val) {
 			row->cells[col].text = strdup("yes");
 			cell_size = 3;
@@ -364,7 +364,7 @@ libtbl_tbl_add_row(libtbl_tbl _table, ...)
 
 	/* Step through all the columns and print the cells */
 	for (size_t i = 0; i < table->cols_size; ++i) {
-		if (tablerow_add_cell(table, &row, i, vp) < 0) {
+		if (tablerow_add_cell(table, &row, i, &vp) < 0) {
 			table_freerow(&row, table->cols_size);
 			va_end(vp);
 			return -1;
